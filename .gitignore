@@ -1,3 +1,4 @@
+the_verdict.txt
 # Virtual environments
 venv/
 venv_clean/
@@ -62,7 +63,6 @@ coverage.xml
 
 # IDE
 .vscode/
-.idea/
 *.swp
 *.swo
 *~
@@ -70,3 +70,4 @@ coverage.xml
 # OS
 .DS_Store
 Thumbs.db
+
