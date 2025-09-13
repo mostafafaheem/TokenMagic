@@ -29,7 +29,7 @@ class BPETokenizer:
         self.vocab: dict[bytes, int] = {bytes([i]):i for i in range(2**8)}
         self.lookup: dict[int, bytes] = {i:bytes([i]) for i in range(2**8)}
         self.merges: dict[(bytes, bytes), int] = {}
-        self.special_tokens: dict[str, int] = SPECIAL_TOKENS
+        self.special_tokens: dict[str, int] = {}
 
     def train(self, vocabulary_size: int, text: str):
         
@@ -38,9 +38,14 @@ class BPETokenizer:
         
         num_merges = vocabulary_size - 2**8
         regex_obj = re.compile(self.pattern)
+
         word_tokens: list[list[bytes]] = [
-            [bytes([byte]) for byte in word.encode("utf-8")] for word in regex_obj.findall(text)
+            [seg.encode("utf-8")] if seg in SPECIAL_TOKENS
+            else [bytes([b]) for b in word.encode("utf-8")]
+            for seg in [p for p in re.split("(" + "|".join(map(re.escape, SPECIAL_TOKENS)) + ")", text) if p]
+            for word in ([seg] if seg in SPECIAL_TOKENS else regex_obj.findall(seg))
         ]
+
         while num_merges > 0:
             pair_counts = collections.Counter()
             for word in word_tokens:
@@ -91,9 +96,11 @@ class BPETokenizer:
         
         regex_obj = re.compile(self.pattern)
 
-        word_tokens = [
-            [bytes([byte]) for byte in word.encode("utf-8")]
-            for word in regex_obj.findall(text)
+        word_tokens: list[list[bytes]] = [
+            [seg.encode("utf-8")] if seg in SPECIAL_TOKENS
+            else [bytes([b]) for b in word.encode("utf-8")]
+            for seg in [p for p in re.split("(" + "|".join(map(re.escape, SPECIAL_TOKENS)) + ")", text) if p]
+            for word in ([seg] if seg in SPECIAL_TOKENS else regex_obj.findall(seg))
         ]
 
         for word in word_tokens:
@@ -115,7 +122,7 @@ class BPETokenizer:
                         merged_word.append(word[i])
                         i += 1
                 word = merged_word
-
+            
             for byte in word:
                 
                 token_id = self.vocab.get(byte)
@@ -149,18 +156,15 @@ class BPETokenizer:
 
 
     def save(self, filename: str):
-        """
-        Save the tokenizer model and vocab in a lossless, reloadable format.
-        """
+
         model_file = filename + ".model.json"
         vocab_file = filename + ".vocab.json"
 
-        # --- save model (pattern, special tokens, merges) ---
         model_data = {
-            "pattern": self.pattern,        # store regex string, not compiled object
-            "special_tokens": self.special_tokens, # {str: int}
+            "pattern": self.pattern,
+            "special_tokens": self.special_tokens, 
             "merges": [
-                # serialize byte pairs as base64
+
                 [base64.b64encode(a).decode("ascii"),
                  base64.b64encode(b).decode("ascii"),
                  rank]
@@ -179,19 +183,15 @@ class BPETokenizer:
             json.dump(vocab_data, f, ensure_ascii=False, indent=2)
 
     def load(self, filename: str):
-        """
-        Load a tokenizer from a .model.json and .vocab.json pair.
-        """
+
         model_file = filename + ".model.json"
         vocab_file = filename + ".vocab.json"
 
-        # --- load model ---
         with open(model_file, "r", encoding="utf-8") as f:
             model_data = json.load(f)
 
-        self.pattern_string = model_data["pattern"]
-        import regex
-        self.pattern = regex.compile(self.pattern_string)
+        self.pattern = model_data["pattern"]
+
         self.special_tokens = model_data["special_tokens"]
 
         self.merges = {
@@ -199,7 +199,6 @@ class BPETokenizer:
             for a, b, rank in model_data["merges"]
         }
 
-        # --- load vocab ---
         with open(vocab_file, "r", encoding="utf-8") as f:
             vocab_data = json.load(f)
 
@@ -208,67 +207,3 @@ class BPETokenizer:
             for idx, token in vocab_data.items()
         }
         self.lookup = {idx: token for token, idx in self.vocab.items()}
-
-    # def save(self, filename):
-    #     model_file = filename + ".model"
-    #     with open(model_file, "w", encoding="utf-8") as f:
-
-    #         f.write("tokenizer\n")
-    #         f.write(f"{self.pattern}\n")
-    #         f.write(f"{len(self.special_tokens)}\n")
-    #         for special, idx in self.special_tokens.items():
-    #             f.write(f"{special} {idx}\n")
-
-    #         for idx1, idx2 in self.merges:
-    #             f.write(f"{idx1} {idx2}\n")
-
-    #     vocab_file = filename + ".vocab"
-    #     inverted_merges = {idx: pair for pair, idx in self.merges.items()}
-
-    #     with open(vocab_file, "w", encoding="utf-8") as f:
-    #         for token, idx in self.vocab.items():
-    #             s = token.decode("utf-8", errors="replace")
-    #             if idx in inverted_merges:
-    #                 idx0, idx1 = inverted_merges[idx]
-    #                 s0 = self.vocab[idx0].decode("utf-8", errors="replace")
-    #                 s1 = self.vocab[idx1].decode("utf-8", errors="replace")
-    #                 f.write(f"[{s0}][{s1}] -> [{s}] {idx}\n")
-                
-    #             else:
-    #                 f.write(f"[{s}] {idx}\n")
-    
-    # def load(self, model_file):
-
-    #     assert model_file.endswith(".model")
-
-    #     merges = {}
-    #     special_tokens = {}
-    #     idx = 256
-    #     with open(model_file, 'r', encoding="utf-8") as f:
-
-    #         version = f.readline().strip()
-    #         # assert version == "minbpe v1"
-
-    #         self.pattern = f.readline().strip()
-
-    #         num_special = int(f.readline().strip())
-    #         for _ in range(num_special):
-    #             special, special_idx = f.readline().strip().split()
-    #             special_tokens[special] = int(special_idx)
-
-    #         for line in f:
-    #             idx1, idx2 = map(int, line.split())
-    #             merges[(idx1, idx2)] = idx
-    #             idx += 1
-        
-    #     vocab = {idx: bytes([idx]) for idx in range(256)}
-    #     for (p0, p1), idx in self.merges.items():
-    #         vocab[idx] = vocab[p0] + vocab[p1]
-    #     for special, idx in self.special_tokens.items():
-    #         vocab[idx] = bytes(special.encode("utf-8"))
-
-    #     lookup = {v: k for k, v in vocab.items()}
-    #     self.merges = merges
-    #     self.special_tokens = special_tokens
-    #     self.vocab = vocab
-    #     self.lookup = lookup
