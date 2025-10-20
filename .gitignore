@@ -1,8 +1,4 @@
-.gitignore
-model.py
-features.txt
-toktikv1.model.json
-toktikv1.vocab.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -219,3 +215,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+.gitignore
+model.py
+features.txt
+toktikv1.model.json
+toktikv1.vocab.json
