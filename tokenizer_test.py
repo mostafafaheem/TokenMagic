@@ -6,7 +6,6 @@ tok = BPETokenizer()
 
 regex_obj = re.compile(PATTERN_STRING)
 
-
 with open("the-verdict.txt","r", encoding="utf-8") as f:
     verdict = f.read()
 # text = "Hello, world!"
@@ -20,10 +19,11 @@ text3 = "hello\x00world\n<EOS>  <PAD><UNK>"
 #             for seg in [p for p in re.split("(" + "|".join(map(re.escape, SPECIAL_TOKENS)) + ")", text3) if p]
 #             for word in ([seg] if seg in SPECIAL_TOKENS else regex_obj.findall(seg))
 #         ])
-# print(tok.decode(tok.encode(text3, tok.train(10000, verdict)), visusalize_control_caracters=True))
-tok.load('toktikv1')
-print(tok.decode(tok.encode(text3), visusalize_control_caracters=True))
+print(tok.decode(tok.encode(verdict, tok.train(10000, text3))))
+# tok.load('toktikv1')
+# print(tok.decode(tok.encode(text3), visusalize_control_caracters=True))
 # print(tok.vocab)
 # tok = tiktoken.get_encoding("o200k_base")
 
 # print(tok.decode(tok.encode(text3)))
+# print(len(tok.encode(verdict)))
