@@ -216,8 +216,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-.gitignore
-model.py
-features.txt
-toktikv1.model.json
-toktikv1.vocab.json
+/.gitignore
+/model.py
+/features.txt
+/toktikv1.model.json
+/toktikv1.vocab.json
