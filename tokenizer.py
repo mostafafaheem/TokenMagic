@@ -16,19 +16,19 @@ PATTERN_STRING = "|".join(
     ]
 )
 
-SPECIAL_TOKENS = {
-    "<PAD>": 0,
-    "<UNK>": 1,
-    "<BOS>": 2,
-    "<EOS>": 3,
-}
+SPECIAL_TOKENS = [
+    "<PAD>",
+    "<UNK>",
+    "<BOS>",
+    "<EOS>"
+]
 
 class BPETokenizer:
     def __init__(self, pattern = None):
         self.pattern = PATTERN_STRING if pattern is None else pattern
         self.vocab: dict[bytes, int] = {bytes([i]):i for i in range(2**8)}
         self.lookup: dict[int, bytes] = {i:bytes([i]) for i in range(2**8)}
-        self.merges: dict[(bytes, bytes), int] = {}
+        self.merges: dict[tuple[bytes, bytes], int] = {}
         self.special_tokens: dict[str, int] = {}
 
     def train(self, vocabulary_size: int, text: str):
@@ -76,7 +76,7 @@ class BPETokenizer:
             num_merges -= 1
         special_token_ids = {}
         final_vocab_size = len(self.vocab)
-        for offset, (tok, _) in enumerate(SPECIAL_TOKENS.items()):
+        for offset, tok in enumerate(SPECIAL_TOKENS):
             idx = final_vocab_size + offset
             encoded = tok.encode("utf-8")
             self.vocab[encoded] = idx
@@ -97,7 +97,7 @@ class BPETokenizer:
         regex_obj = re.compile(self.pattern)
 
         word_tokens: list[list[bytes]] = [
-            [seg.encode("utf-8")] if seg in SPECIAL_TOKENS
+            [bytes(seg.encode("utf-8"))] if seg in SPECIAL_TOKENS
             else [bytes([b]) for b in word.encode("utf-8")]
             for seg in [p for p in re.split("(" + "|".join(map(re.escape, SPECIAL_TOKENS)) + ")", text) if p]
             for word in ([seg] if seg in SPECIAL_TOKENS else regex_obj.findall(seg))
@@ -132,9 +132,9 @@ class BPETokenizer:
 
         return tokens
 
-    def decode(self, tokens_ids: list[int], visusalize_control_caracters = False) -> str:
+    def decode(self, tokens_ids: list[int], visusalize_control_characters = False) -> str:
         out = []
-        if visusalize_control_caracters:
+        if visusalize_control_characters:
             for token in tokens_ids:
                 decoded = self.lookup[token].decode("utf-8", errors="replace")
                 for ch in decoded:
@@ -144,7 +144,7 @@ class BPETokenizer:
                         out.append("\\t")
                     elif ch == "\r":
                         out.append("\\r")
-                    elif unicodedata.category(ch)[0] == "C":  # other control chars
+                    elif unicodedata.category(ch)[0] == "C":
                         out.append(f"\\u{ord(ch):04x}")
                     else:
                         out.append(ch)
@@ -153,7 +153,6 @@ class BPETokenizer:
                 out.append(self.lookup[token].decode("utf-8", errors="replace"))
 
         return "".join(out)
-
 
     def save(self, filename: str):
 
